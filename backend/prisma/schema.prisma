@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  username  String   @unique
+  avatar    String?  @default("https://via.placeholder.com/150")
+  bio       String?
+  link      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions Question[]
+  votes     Vote[]
+  likes     Like[]
+  comments  Comment[]
+
+  followedBy Follow[] @relation("following")
+  following  Follow[] @relation("follower")
+
+  notificationsReceived Notification[] @relation("userNotifications")
+  notificationsSent     Notification[] @relation("actorNotifications")
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  content   String
+  category  String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  votes    Vote[]
+  likes    Like[]
+  comments Comment[]
+}
+
+enum VoteType {
+  YES
+  NO
+}
+
+model Vote {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  voteType   VoteType
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, questionId])
+}
+
+model Comment {
+  id         String    @id @default(uuid())
+  text       String
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  questionId String
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies    Comment[] @relation("CommentReplies")
+  likes      Like[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Like {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  questionId String?
+  question   Question? @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  commentId  String?
+  comment    Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, questionId, commentId])
+}
+
+model Follow {
+  followerId  String
+  follower    User   @relation("follower", fields: [followerId], references: [id])
+  followingId String
+  following   User   @relation("following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+}
+
+enum NotificationType {
+  LIKE
+  VOTE
+  COMMENT
+  FOLLOW
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation("userNotifications", fields: [userId], references: [id])
+  actorId    String
+  actor      User             @relation("actorNotifications", fields: [actorId], references: [id])
+  type       NotificationType
+  resourceId String?
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+}
